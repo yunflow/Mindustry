@@ -26,6 +26,11 @@ import static mindustry.Vars.*;
 import static mindustry.input.PlaceMode.*;
 
 public class DesktopInput extends InputHandler{
+    /** Draw mix colour parameters. */
+    public static final float AB_SIN_SCL = 6f;
+    public static final float AB_SIN_MAG = 0.28f;
+    public static final float NOT_VALID_ALPHA = 0.4f;
+    public static final float VALID_ALPHA = 0.24f;
     public Vec2 movement = new Vec2();
     /** Current cursor type. */
     public Cursor cursorType = SystemCursor.arrow;
@@ -130,6 +135,30 @@ public class DesktopInput extends InputHandler{
         int cursorY = tileY(Core.input.mouseY());
 
         //draw plan being moved
+        drawPlanMoved();
+
+        //draw hover plans
+        drawHoverPlan(cursorX, cursorY);
+
+        var items = selectPlans.items;
+        int size = selectPlans.size;
+
+        //draw schematic plans
+        drawSchematicPlan(items, size);
+
+        //draw schematic plans - over version, cached results
+        drawCachedSchematicPlans(items, size);
+
+        if(player.isBuilder()){
+            //draw things that may be placed soon
+            drawThings(cursorX, cursorY);
+        }
+
+        Draw.reset();
+    }
+
+    // extracted methods from drawBottom()
+    private void drawPlanMoved() {
         if(splan != null){
             boolean valid = validPlace(splan.x, splan.y, splan.block, splan.rotation, splan);
             if(splan.block.rotate && splan.block.drawArrow){
@@ -138,69 +167,78 @@ public class DesktopInput extends InputHandler{
 
             splan.block.drawPlan(splan, allPlans(), valid);
 
-            drawSelected(splan.x, splan.y, splan.block, getPlan(splan.x, splan.y, splan.block.size, splan) != null ? Pal.remove : Pal.accent);
+            Color planColor = getPlan(splan.x, splan.y, splan.block.size, splan) != null ? Pal.remove : Pal.accent;
+            drawSelected(splan.x, splan.y, splan.block, planColor);
         }
+    }
 
-        //draw hover plans
+    private void drawHoverPlan(int cursorX, int cursorY) {
         if(mode == none && !isPlacing()){
             var plan = getPlan(cursorX, cursorY);
             if(plan != null){
                 drawSelected(plan.x, plan.y, plan.breaking ? plan.tile().block() : plan.block, Pal.accent);
             }
         }
+    }
 
-        var items = selectPlans.items;
-        int size = selectPlans.size;
-
-        //draw schematic plans
+    private void drawSchematicPlan(BuildPlan[] items, int size) {
         for(int i = 0; i < size; i++){
             var plan = items[i];
             plan.animScale = 1f;
             drawPlan(plan);
         }
+    }
 
-        //draw schematic plans - over version, cached results
+    private void drawCachedSchematicPlans(BuildPlan[] items, int size) {
         for(int i = 0; i < size; i++){
             var plan = items[i];
             //use cached value from previous invocation
             drawOverPlan(plan, plan.cachedValid);
         }
+    }
 
-        if(player.isBuilder()){
-            //draw things that may be placed soon
-            if(mode == placing && block != null){
-                for(int i = 0; i < linePlans.size; i++){
-                    var plan = linePlans.get(i);
-                    if(i == linePlans.size - 1 && plan.block.rotate && plan.block.drawArrow){
-                        drawArrow(block, plan.x, plan.y, plan.rotation);
-                    }
-                    drawPlan(linePlans.get(i));
-                }
-                linePlans.each(this::drawOverPlan);
-            }else if(isPlacing()){
-                int rot = block == null ? rotation : block.planRotation(rotation);
-                if(block.rotate && block.drawArrow){
-                    drawArrow(block, cursorX, cursorY, rot);
-                }
-                Draw.color();
-                boolean valid = validPlace(cursorX, cursorY, block, rot);
-                drawPlan(cursorX, cursorY, block, rot);
-                block.drawPlace(cursorX, cursorY, rot, valid);
-
-                if(block.saveConfig){
-                    Draw.mixcol(!valid ? Pal.breakInvalid : Color.white, (!valid ? 0.4f : 0.24f) + Mathf.absin(Time.globalTime, 6f, 0.28f));
-                    bplan.set(cursorX, cursorY, rot, block);
-                    bplan.config = block.lastConfig;
-                    block.drawPlanConfig(bplan, allPlans());
-                    bplan.config = null;
-                    Draw.reset();
-                }
-
-                drawOverlapCheck(block, cursorX, cursorY, valid);
+    private void drawThings(int cursorX, int cursorY) {
+        if(mode == placing && block != null){
+            drawEachLines();
+        }else if(isPlacing()){
+            int rot = block == null ? rotation : block.planRotation(rotation);
+            assert block != null;
+            if(block.rotate && block.drawArrow){
+                drawArrow(block, cursorX, cursorY, rot);
             }
-        }
+            Draw.color();
+            boolean valid = validPlace(cursorX, cursorY, block, rot);
+            setCursorValid(cursorX, cursorY, rot, valid);
 
-        Draw.reset();
+            drawOverlapCheck(block, cursorX, cursorY, valid);
+        }
+    }
+
+    private void drawEachLines() {
+        for(int i = 0; i < linePlans.size; i++){
+            var plan = linePlans.get(i);
+            boolean isBlockValid = plan.block.rotate && plan.block.drawArrow;
+            if(i == linePlans.size - 1 && isBlockValid){
+                drawArrow(block, plan.x, plan.y, plan.rotation);
+            }
+            drawPlan(linePlans.get(i));
+        }
+        linePlans.each(this::drawOverPlan);
+    }
+
+    private void setCursorValid(int cursorX, int cursorY, int rot, boolean valid) {
+        drawPlan(cursorX, cursorY, block, rot);
+        block.drawPlace(cursorX, cursorY, rot, valid);
+
+        if(block.saveConfig){
+            float abSin = Mathf.absin(Time.globalTime, AB_SIN_SCL, AB_SIN_MAG);
+            Draw.mixcol(!valid ? Pal.breakInvalid : Color.white, (!valid ? NOT_VALID_ALPHA : VALID_ALPHA) + abSin);
+            bplan.set(cursorX, cursorY, rot, block);
+
+            block.drawPlanConfig(bplan, allPlans());
+            bplan.config = null;
+            Draw.reset();
+        }
     }
 
     @Override
