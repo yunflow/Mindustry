@@ -164,7 +164,7 @@ public class Map implements Comparable<Map>, Publishable{
     @Override
     public void addSteamID(String id){
         tags.put("steamid", id);
-        editor.tags.put("steamid", id);
+        editor.getTags().put("steamid", id);
         
         try{
             ui.editor.save();
@@ -178,7 +178,7 @@ public class Map implements Comparable<Map>, Publishable{
     @Override
     public void removeSteamID(){
         tags.remove("steamid");
-        editor.tags.remove("steamid");
+        editor.getTags().remove("steamid");
         
         try{
             ui.editor.save();
@@ -224,7 +224,7 @@ public class Map implements Comparable<Map>, Publishable{
     @Override
     public boolean prePublish(){
         tags.put("author", player.name);
-        editor.tags.put("author", player.name);
+        editor.getTags().put("author", player.name);
         
         ui.editor.save();
         return true;

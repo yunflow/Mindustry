@@ -31,7 +31,7 @@ public class MapInfoDialog extends BaseDialog{
     private void setup(){
         cont.clear();
 
-        ObjectMap<String, String> tags = editor.tags;
+        ObjectMap<String, String> tags = editor.getTags();
         
         cont.pane(t -> {
             t.add("@editor.mapname").padRight(8).left();
@@ -83,14 +83,14 @@ public class MapInfoDialog extends BaseDialog{
 
                 r.button("@editor.generation", Icon.terrain, style, () -> {
                     //randomize so they're not all the same seed
-                    var res = maps.readFilters(editor.tags.get("genfilters", ""));
+                    var res = maps.readFilters(editor.getTags().get("genfilters", ""));
                     res.each(GenerateFilter::randomize);
 
                     generate.show(res,
                     filters -> {
                         //reset seed to 0 so it is not written
                         filters.each(f -> f.seed = 0);
-                        editor.tags.put("genfilters", JsonIO.write(filters));
+                        editor.getTags().put("genfilters", JsonIO.write(filters));
                     });
                     hide();
                 }).marginLeft(10f);

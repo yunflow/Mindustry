@@ -20,18 +20,18 @@ import static mindustry.Vars.*;
 public class MapEditor{
     public static final float[] brushSizes = {1, 1.5f, 2, 3, 4, 5, 9, 15, 20};
 
-    public StringMap tags = new StringMap();
-    public MapRenderer renderer = new MapRenderer();
+    private StringMap tags = new StringMap();
+    private final MapRenderer renderer = new MapRenderer();
 
     private final Context context = new Context();
-    private OperationStack stack = new OperationStack();
+    private final OperationStack stack = new OperationStack();
     private DrawOperation currentOp;
     private boolean loading;
 
-    public float brushSize = 1;
-    public int rotation;
-    public Block drawBlock = Blocks.stone;
-    public Team drawTeam = Team.sharded;
+    private float brushSize = 1;
+    private int rotation;
+    private Block drawBlock = Blocks.stone;
+    private Team drawTeam = Team.sharded;
 
     public boolean isLoading(){
         return loading;
@@ -42,7 +42,7 @@ public class MapEditor{
 
         loading = true;
         createTiles(width, height);
-        renderer.resize(width, height);
+        getRenderer().resize(width, height);
         loading = false;
     }
 
@@ -50,12 +50,12 @@ public class MapEditor{
         reset();
 
         loading = true;
-        tags.putAll(map.tags);
+        getTags().putAll(map.tags);
         if(map.file.parent().parent().name().equals("1127400") && steam){
-            tags.put("steamid",  map.file.parent().name());
+            getTags().put("steamid",  map.file.parent().name());
         }
         load(() -> MapIO.loadMap(map, context));
-        renderer.resize(width(), height());
+        getRenderer().resize(width(), height());
         loading = false;
     }
 
@@ -64,7 +64,7 @@ public class MapEditor{
 
         createTiles(pixmap.width, pixmap.height);
         load(() -> MapIO.readImage(pixmap, tiles()));
-        renderer.resize(width(), height());
+        getRenderer().resize(width(), height());
     }
 
     public void updateRenderer(){
@@ -84,7 +84,7 @@ public class MapEditor{
             tiles.get(build.tileX(), build.tileY()).setBlock(build.block, build.team, build.rotation, () -> build);
         }
 
-        renderer.resize(width(), height());
+        getRenderer().resize(width(), height());
     }
 
     public void load(Runnable r){
@@ -105,13 +105,13 @@ public class MapEditor{
     }
 
     public Map createMap(Fi file){
-        return new Map(file, width(), height(), new StringMap(tags), true);
+        return new Map(file, width(), height(), new StringMap(getTags()), true);
     }
 
     private void reset(){
         clearOp();
-        brushSize = 1;
-        drawBlock = Blocks.stone;
+        setBrushSize(1);
+        setDrawBlock(Blocks.stone);
         tags = new StringMap();
     }
 
@@ -132,7 +132,7 @@ public class MapEditor{
     }
 
     public void drawBlocksReplace(int x, int y){
-        drawBlocks(x, y, tile -> tile.block() != Blocks.air || drawBlock.isFloor());
+        drawBlocks(x, y, tile -> tile.block() != Blocks.air || getDrawBlock().isFloor());
     }
 
     public void drawBlocks(int x, int y){
@@ -144,32 +144,32 @@ public class MapEditor{
     }
 
     public void drawBlocks(int x, int y, boolean square, boolean forceOverlay, Boolf<Tile> tester){
-        if(drawBlock.isMultiblock()){
-            x = Mathf.clamp(x, (drawBlock.size - 1) / 2, width() - drawBlock.size / 2 - 1);
-            y = Mathf.clamp(y, (drawBlock.size - 1) / 2, height() - drawBlock.size / 2 - 1);
+        if(getDrawBlock().isMultiblock()){
+            x = Mathf.clamp(x, (getDrawBlock().size - 1) / 2, width() - getDrawBlock().size / 2 - 1);
+            y = Mathf.clamp(y, (getDrawBlock().size - 1) / 2, height() - getDrawBlock().size / 2 - 1);
             if(!hasOverlap(x, y)){
-                tile(x, y).setBlock(drawBlock, drawTeam, rotation);
+                tile(x, y).setBlock(getDrawBlock(), getDrawTeam(), getRotation());
             }
         }else{
-            boolean isFloor = drawBlock.isFloor() && drawBlock != Blocks.air;
+            boolean isFloor = getDrawBlock().isFloor() && getDrawBlock() != Blocks.air;
 
             Cons<Tile> drawer = tile -> {
                 if(!tester.get(tile)) return;
 
                 if(isFloor){
                     if(forceOverlay){
-                        tile.setOverlay(drawBlock.asFloor());
+                        tile.setOverlay(getDrawBlock().asFloor());
                     }else{
-                        if(!(drawBlock.asFloor().wallOre && !tile.block().solid)){
-                            tile.setFloor(drawBlock.asFloor());
+                        if(!(getDrawBlock().asFloor().wallOre && !tile.block().solid)){
+                            tile.setFloor(getDrawBlock().asFloor());
                         }
                     }
-                }else if(!(tile.block().isMultiblock() && !drawBlock.isMultiblock())){
-                    if(drawBlock.rotate && tile.build != null && tile.build.rotation != rotation){
-                        addTileOp(TileOp.get(tile.x, tile.y, (byte)OpType.rotation.ordinal(), (byte)rotation));
+                }else if(!(tile.block().isMultiblock() && !getDrawBlock().isMultiblock())){
+                    if(getDrawBlock().rotate && tile.build != null && tile.build.rotation != getRotation()){
+                        addTileOp(TileOp.get(tile.x, tile.y, (byte)OpType.rotation.ordinal(), (byte) getRotation()));
                     }
 
-                    tile.setBlock(drawBlock, drawTeam, rotation);
+                    tile.setBlock(getDrawBlock(), getDrawTeam(), getRotation());
                 }
             };
 
@@ -184,15 +184,15 @@ public class MapEditor{
     boolean hasOverlap(int x, int y){
         Tile tile = world.tile(x, y);
         //allow direct replacement of blocks of the same size
-        if(tile != null && tile.isCenter() && tile.block() != drawBlock && tile.block().size == drawBlock.size && tile.x == x && tile.y == y){
+        if(tile != null && tile.isCenter() && tile.block() != getDrawBlock() && tile.block().size == getDrawBlock().size && tile.x == x && tile.y == y){
             return false;
         }
 
         //else, check for overlap
-        int offsetx = -(drawBlock.size - 1) / 2;
-        int offsety = -(drawBlock.size - 1) / 2;
-        for(int dx = 0; dx < drawBlock.size; dx++){
-            for(int dy = 0; dy < drawBlock.size; dy++){
+        int offsetx = -(getDrawBlock().size - 1) / 2;
+        int offsety = -(getDrawBlock().size - 1) / 2;
+        for(int dx = 0; dx < getDrawBlock().size; dx++){
+            for(int dy = 0; dy < getDrawBlock().size; dy++){
                 int worldx = dx + offsetx + x;
                 int worldy = dy + offsety + y;
                 Tile other = world.tile(worldx, worldy);
@@ -232,31 +232,11 @@ public class MapEditor{
         }
     }
 
-    public void addFloorCliffs(){
-        for(Tile tile : world.tiles){
-            if(!tile.floor().hasSurface() || tile.block() == Blocks.cliff) continue;
-
-            int rotation = 0;
-            for(int i = 0; i < 8; i++){
-                Tile other = world.tiles.get(tile.x + Geometry.d8[i].x, tile.y + Geometry.d8[i].y);
-                if(other != null && !other.floor().hasSurface()){
-                    rotation |= (1 << i);
-                }
-            }
-
-            if(rotation != 0){
-                tile.setBlock(Blocks.cliff);
-            }
-
-            tile.data = (byte)rotation;
-        }
-    }
-
     public void drawCircle(int x, int y, Cons<Tile> drawer){
-        int clamped = (int)brushSize;
+        int clamped = (int) getBrushSize();
         for(int rx = -clamped; rx <= clamped; rx++){
             for(int ry = -clamped; ry <= clamped; ry++){
-                if(Mathf.within(rx, ry, brushSize - 0.5f + 0.0001f)){
+                if(Mathf.within(rx, ry, getBrushSize() - 0.5f + 0.0001f)){
                     int wx = x + rx, wy = y + ry;
 
                     if(wx < 0 || wy < 0 || wx >= width() || wy >= height()){
@@ -270,7 +250,7 @@ public class MapEditor{
     }
 
     public void drawSquare(int x, int y, Cons<Tile> drawer){
-        int clamped = (int)brushSize;
+        int clamped = (int) getBrushSize();
         for(int rx = -clamped; rx <= clamped; rx++){
             for(int ry = -clamped; ry <= clamped; ry++){
                 int wx = x + rx, wy = y + ry;
@@ -324,7 +304,7 @@ public class MapEditor{
             }
         }
 
-        renderer.resize(width, height);
+        getRenderer().resize(width, height);
         loading = false;
     }
 
@@ -333,15 +313,11 @@ public class MapEditor{
     }
 
     public void undo(){
-        if(stack.canUndo()){
-            stack.undo();
-        }
+        stack.undo();
     }
 
     public void redo(){
-        if(stack.canRedo()){
-            stack.redo();
-        }
+        stack.redo();
     }
 
     public boolean canUndo(){
@@ -364,9 +340,50 @@ public class MapEditor{
         if(currentOp == null) currentOp = new DrawOperation();
         currentOp.addOperation(data);
 
-        renderer.updatePoint(TileOp.x(data), TileOp.y(data));
+        getRenderer().updatePoint(TileOp.x(data), TileOp.y(data));
     }
 
+    public StringMap getTags() {
+        return tags;
+    }
+
+    public MapRenderer getRenderer() {
+        return renderer;
+    }
+
+    public float getBrushSize() {
+        return brushSize;
+    }
+
+    public void setBrushSize(float brushSize) {
+        this.brushSize = brushSize;
+    }
+
+    public int getRotation() {
+        return rotation;
+    }
+
+    public void setRotation(int rotation) {
+        this.rotation = rotation;
+    }
+
+    public Block getDrawBlock() {
+        return drawBlock;
+    }
+
+    public void setDrawBlock(Block drawBlock) {
+        this.drawBlock = drawBlock;
+    }
+
+    public Team getDrawTeam() {
+        return drawTeam;
+    }
+
+    public void setDrawTeam(Team drawTeam) {
+        this.drawTeam = drawTeam;
+    }
+
+    // Context inner class
     class Context implements WorldContext{
         @Override
         public Tile tile(int index){

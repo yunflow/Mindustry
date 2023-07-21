@@ -19,7 +19,7 @@ public enum EditorTool{
             if(!Structs.inBounds(x, y, editor.width(), editor.height())) return;
 
             Tile tile = editor.tile(x, y);
-            editor.drawBlock = tile.block() == Blocks.air || !tile.block().inEditor ? tile.overlay() == Blocks.air ? tile.floor() : tile.overlay() : tile.block();
+            editor.setDrawBlock(tile.block() == Blocks.air || !tile.block().inEditor ? tile.overlay() == Blocks.air ? tile.floor() : tile.overlay() : tile.block());
         }
     },
     line(KeyCode.l, "replace", "orthogonal"){
@@ -66,7 +66,7 @@ public enum EditorTool{
                 editor.drawBlocks(x, y, true, false, tile -> true);
             }else if(mode == 2){
                 //draw teams
-                editor.drawCircle(x, y, tile -> tile.setTeam(editor.drawTeam));
+                editor.drawCircle(x, y, tile -> tile.setTeam(editor.getDrawTeam()));
             }else if(mode == 3){
                 editor.drawBlocks(x, y, false, true, tile -> tile.floor().isLiquid);
             }
@@ -106,7 +106,7 @@ public enum EditorTool{
 
             if(tile == null) return;
 
-            if(editor.drawBlock.isMultiblock() && (mode == 0 || mode == -1)){
+            if(editor.getDrawBlock().isMultiblock() && (mode == 0 || mode == -1)){
                 //don't fill multiblocks, thanks
                 pencil.touched(x, y);
                 return;
@@ -122,21 +122,21 @@ public enum EditorTool{
                 Boolf<Tile> tester;
                 Cons<Tile> setter;
 
-                if(editor.drawBlock.isOverlay()){
+                if(editor.getDrawBlock().isOverlay()){
                     Block dest = tile.overlay();
-                    if(dest == editor.drawBlock) return;
+                    if(dest == editor.getDrawBlock()) return;
                     tester = t -> t.overlay() == dest && (t.floor().hasSurface() || !t.floor().needsSurface);
-                    setter = t -> t.setOverlay(editor.drawBlock);
-                }else if(editor.drawBlock.isFloor()){
+                    setter = t -> t.setOverlay(editor.getDrawBlock());
+                }else if(editor.getDrawBlock().isFloor()){
                     Block dest = tile.floor();
-                    if(dest == editor.drawBlock) return;
+                    if(dest == editor.getDrawBlock()) return;
                     tester = t -> t.floor() == dest;
-                    setter = t -> t.setFloorUnder(editor.drawBlock.asFloor());
+                    setter = t -> t.setFloorUnder(editor.getDrawBlock().asFloor());
                 }else{
                     Block dest = tile.block();
-                    if(dest == editor.drawBlock) return;
+                    if(dest == editor.getDrawBlock()) return;
                     tester = t -> t.block() == dest;
-                    setter = t -> t.setBlock(editor.drawBlock, editor.drawTeam);
+                    setter = t -> t.setBlock(editor.getDrawBlock(), editor.getDrawTeam());
                 }
 
                 //replace only when the mode is 0 using the specified functions
@@ -146,8 +146,8 @@ public enum EditorTool{
                 //only fill synthetic blocks, it's meaningless otherwise
                 if(tile.synthetic()){
                     Team dest = tile.team();
-                    if(dest == editor.drawTeam) return;
-                    fill(x, y, true, t -> t.getTeamID() == dest.id && t.synthetic(), t -> t.setTeam(editor.drawTeam));
+                    if(dest == editor.getDrawTeam()) return;
+                    fill(x, y, true, t -> t.getTeamID() == dest.id && t.synthetic(), t -> t.setTeam(editor.getDrawTeam()));
                 }
             }else if(mode == 2){ //erase mode
                 Boolf<Tile> tester;
@@ -246,10 +246,10 @@ public enum EditorTool{
         public void touched(int x, int y){
 
             //floor spray
-            if(editor.drawBlock.isFloor()){
+            if(editor.getDrawBlock().isFloor()){
                 editor.drawCircle(x, y, tile -> {
                     if(Mathf.chance(chance)){
-                        tile.setFloor(editor.drawBlock.asFloor());
+                        tile.setFloor(editor.getDrawBlock().asFloor());
                     }
                 });
             }else if(mode == 0){ //replace-only mode, doesn't affect air

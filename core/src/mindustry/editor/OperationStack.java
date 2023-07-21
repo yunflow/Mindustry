@@ -35,6 +35,7 @@ public class OperationStack{
     }
 
     public void undo(){
+        // already implemented
         if(!canUndo()) return;
 
         stack.get(stack.size - 1 + index).undo();
@@ -42,6 +43,7 @@ public class OperationStack{
     }
 
     public void redo(){
+        // already implemented
         if(!canRedo()) return;
 
         index++;

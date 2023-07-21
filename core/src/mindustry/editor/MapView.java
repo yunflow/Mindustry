@@ -212,7 +212,7 @@ public class MapView extends Element implements GestureListener{
         x = (x - getWidth() / 2 + sclwidth / 2 - offsetx * zoom) / sclwidth * editor.width();
         y = (y - getHeight() / 2 + sclheight / 2 - offsety * zoom) / sclheight * editor.height();
 
-        if(editor.drawBlock.size % 2 == 0 && tool != EditorTool.eraser){
+        if(editor.getDrawBlock().size % 2 == 0 && tool != EditorTool.eraser){
             return Tmp.p1.set((int)(x - 0.5f), (int)(y - 0.5f));
         }else{
             return Tmp.p1.set((int)x, (int)y);
@@ -248,7 +248,7 @@ public class MapView extends Element implements GestureListener{
         Draw.color(Pal.remove);
         Lines.stroke(2f);
         Lines.rect(centerx - sclwidth / 2 - 1, centery - sclheight / 2 - 1, sclwidth + 2, sclheight + 2);
-        editor.renderer.draw(centerx - sclwidth / 2 + Core.scene.marginLeft, centery - sclheight / 2 + Core.scene.marginBottom, sclwidth, sclheight);
+        editor.getRenderer().draw(centerx - sclwidth / 2 + Core.scene.marginLeft, centery - sclheight / 2 + Core.scene.marginBottom, sclwidth, sclheight);
         Draw.reset();
 
         if(grid){
@@ -273,7 +273,7 @@ public class MapView extends Element implements GestureListener{
 
         int index = 0;
         for(int i = 0; i < MapEditor.brushSizes.length; i++){
-            if(editor.brushSize == MapEditor.brushSizes[i]){
+            if(editor.getBrushSize() == MapEditor.brushSizes[i]){
                 index = i;
                 break;
             }
@@ -284,7 +284,7 @@ public class MapView extends Element implements GestureListener{
         Draw.color(Pal.accent);
         Lines.stroke(Scl.scl(2f));
 
-        if((!editor.drawBlock.isMultiblock() || tool == EditorTool.eraser) && tool != EditorTool.fill){
+        if((!editor.getDrawBlock().isMultiblock() || tool == EditorTool.eraser) && tool != EditorTool.fill){
             if(tool == EditorTool.line && drawing){
                 Vec2 v1 = unproject(startx, starty).add(x, y);
                 float sx = v1.x, sy = v1.y;
@@ -300,7 +300,7 @@ public class MapView extends Element implements GestureListener{
 
                 //pencil square outline
                 if(tool == EditorTool.pencil && tool.mode == 1){
-                    Lines.square(v.x + scaling/2f, v.y + scaling/2f, scaling * ((editor.brushSize == 1.5f ? 1f : editor.brushSize) + 0.5f));
+                    Lines.square(v.x + scaling/2f, v.y + scaling/2f, scaling * ((editor.getBrushSize() == 1.5f ? 1f : editor.getBrushSize()) + 0.5f));
                 }else{
                     Lines.poly(brushPolygons[index], v.x, v.y, scaling);
                 }
@@ -309,11 +309,11 @@ public class MapView extends Element implements GestureListener{
             if((tool.edit || tool == EditorTool.line) && (!mobile || drawing)){
                 Point2 p = project(mousex, mousey);
                 Vec2 v = unproject(p.x, p.y).add(x, y);
-                float offset = (editor.drawBlock.size % 2 == 0 ? scaling / 2f : 0f);
+                float offset = (editor.getDrawBlock().size % 2 == 0 ? scaling / 2f : 0f);
                 Lines.square(
                 v.x + scaling / 2f + offset,
                 v.y + scaling / 2f + offset,
-                scaling * editor.drawBlock.size / 2f);
+                scaling * editor.getDrawBlock().size / 2f);
             }
         }
 

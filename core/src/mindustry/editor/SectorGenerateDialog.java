@@ -100,7 +100,7 @@ public class SectorGenerateDialog extends BaseDialog{
                 editor.updateRenderer();
                 state.rules.sector = null;
                 //clear extra filters
-                editor.tags.put("genfilters", "{}");
+                editor.getTags().put("genfilters", "{}");
             });
         });
     }

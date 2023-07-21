@@ -82,7 +82,7 @@ public class EditorTile extends Tile{
         op(OpType.team, (byte)getTeamID());
         super.setTeam(team);
 
-        getLinkedTiles(t -> editor.renderer.updatePoint(t.x, t.y));
+        getLinkedTiles(t -> editor.getRenderer().updatePoint(t.x, t.y));
     }
 
     @Override
@@ -153,7 +153,7 @@ public class EditorTile extends Tile{
     }
 
     private void update(){
-        editor.renderer.updatePoint(x, y);
+        editor.getRenderer().updatePoint(x, y);
     }
 
     private boolean skip(){

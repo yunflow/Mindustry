@@ -27,7 +27,7 @@ public class EditorMapsDialog extends MapListDialog{
                 Runnable show = () -> ui.loadAnd(() -> {
                     hide();
                     ui.editor.show();
-                    editor.tags.put("name", text);
+                    editor.getTags().put("name", text);
                     Events.fire(new MapMakeEvent());
                 });
 
