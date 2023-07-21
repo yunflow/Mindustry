@@ -3,12 +3,12 @@ package mindustry.ui;
 import mindustry.annotations.Annotations.*;
 import mindustry.gen.*;
 
-import java.util.List;
 
 import static mindustry.Vars.*;
 
 /** Class for handling menus and notifications across the network. Unstable API! */
-public class Menus extends MenusSuper {
+public class Menus implements MenusInterface {
+    private final MenusSuper menusSuper = new MenusSuper();
 
     //do not invoke any of the methods below directly, use Call
 
@@ -115,10 +115,5 @@ public class Menus extends MenusSuper {
         if(text == null || Fonts.icon.getData().getGlyph((char)unicode) == null) return;
 
         ui.hudfrag.showToast(Fonts.getGlyph(Fonts.icon, (char)unicode), text);
-    }
-
-    @Override
-    public List<Menus> getMenuListeners() {
-        return null;
     }
 }

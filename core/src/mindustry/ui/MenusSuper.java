@@ -20,7 +20,6 @@ import static mindustry.Vars.ui;
 public class MenusSuper implements MenusInterface {
     private static final Seq<Menus.MenuListener> menuListeners = new Seq<>();
     private static final Seq<Menus.TextInputListener> textInputListeners = new Seq<>();
-    private final List<Menus> menus = new ArrayList<>();
 
     /**
      * Register a *global* menu listener. If no option is chosen, the option is returned as -1.
@@ -72,9 +71,5 @@ public class MenusSuper implements MenusInterface {
         if(label != null){
             label.remove();
         }
-    }
-
-    public List<Menus> getMenuListeners() {
-        return menus;
     }
 }
