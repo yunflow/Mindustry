@@ -22,6 +22,29 @@ import static mindustry.Vars.*;
 import static mindustry.logic.LCanvas.*;
 
 public class LogicDialog extends BaseDialog{
+    public static final float PAD_MARGIN = 10f;
+    public static final float DEFAULT_SIZE_WIDTH = 280f;
+    public static final float DEFAULT_SIZE_HEIGHT = 60f;
+    public static final float MARGIN_LEFT = 12f;
+    public static final float BUTTON_DEFAULT_WIDTH = 160f;
+    public static final float BUTTON_DEFAULT_HEIGHT = 64f;
+    public static final float PAD_RIGHT = 16f;
+    public static final float TABLE_HEIGHT = 45f;
+    public static final float CAT_WIDTH = 130f;
+    public static final float CAT_HEIGHT = 50f;
+    public static final float GRAPHICS_OFFSET = 0.8f;
+    public static final int CAT_ROW = 3;
+    public static final float IMAGE_PAD = 10f;
+    public static final float PERIOD = 15f;
+    public static final int PAD_LEFT = 4;
+    public static final float WIDTH = 140f;
+    public static final double DOUBLE_MIN = 0.00001;
+    public static final float DURATION = 0.2f;
+    public static final float IMAGE_OFFSET = 5f;
+    public static final float STUB = 8f;
+    public static final float MUL = 0.5f;
+    public static final int COLSPAN = 6;
+    public static final int HEIGHT = 4;
     public LCanvas canvas;
     Cons<String> consumer = s -> {};
     boolean privileged;
@@ -80,151 +103,183 @@ public class LogicDialog extends BaseDialog{
 
     private void setup(){
         buttons.clearChildren();
-        buttons.defaults().size(160f, 64f);
+        buttons.defaults().size(BUTTON_DEFAULT_WIDTH, BUTTON_DEFAULT_HEIGHT);
         buttons.button("@back", Icon.left, this::hide).name("back");
 
-        buttons.button("@edit", Icon.edit, () -> {
-            BaseDialog dialog = new BaseDialog("@editor.export");
-            dialog.cont.pane(p -> {
-                p.margin(10f);
-                p.table(Tex.button, t -> {
-                    TextButtonStyle style = Styles.flatt;
-                    t.defaults().size(280f, 60f).left();
-
-                    t.button("@schematic.copy", Icon.copy, style, () -> {
-                        dialog.hide();
-                        Core.app.setClipboardText(canvas.save());
-                    }).marginLeft(12f);
-                    t.row();
-                    t.button("@schematic.copy.import", Icon.download, style, () -> {
-                        dialog.hide();
-                        try{
-                            canvas.load(Core.app.getClipboardText().replace("\r\n", "\n"));
-                        }catch(Throwable e){
-                            ui.showException(e);
-                        }
-                    }).marginLeft(12f).disabled(b -> Core.app.getClipboardText() == null);
-                });
-            });
-
-            dialog.addCloseButton();
-            dialog.show();
-        }).name("edit");
+        buttons.button("@edit", Icon.edit, this::buttonEdit).name("edit");
 
         if(Core.graphics.isPortrait()) buttons.row();
 
-        buttons.button("@variables", Icon.menu, () -> {
-            BaseDialog dialog = new BaseDialog("@variables");
-            dialog.hidden(() -> {
-                if(!wasPaused && !net.active()){
-                    state.set(State.paused);
-                }
+        Runnable buttonExecute = this::buttonExecute;
+        Boolf<TextButton> textButtonBoolf = b -> executor == null || executor.vars.length == 0;
+        buttons.button("@variables", Icon.menu, buttonExecute).name("variables").disabled(textButtonBoolf);
+
+        Boolf<TextButton> textButtonBool1 = t -> canvas.statements.getChildren().size >= LExecutor.maxInstructions;
+        buttons.button("@add", Icon.add, this::buttonAdd).disabled(textButtonBool1);
+    }
+
+    private void buttonAdd() {
+        BaseDialog dialog = new BaseDialog("@add");
+        dialog.cont.table(table -> {
+            table.background(Tex.button);
+            table.pane(t -> paneList(dialog, t)).grow();
+        }).fill().maxHeight(Core.graphics.getHeight() * GRAPHICS_OFFSET);
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
+    private void paneList(BaseDialog dialog, Table t) {
+        for(Prov<LStatement> prov : LogicIO.allStatements){
+            LStatement example = prov.get();
+            boolean exampleValid = example.hidden() || (example.privileged() && !privileged);
+            boolean examplePri = exampleValid || (example.nonPrivileged() && privileged);
+            if(example instanceof InvalidStatement || examplePri) continue;
+
+            LCategory category = example.category();
+            Table cat = t.find(category.name);
+            if(cat == null){
+                cat = getTable(t, category);
+            }
+
+            TextButtonStyle style = new TextButtonStyle(Styles.flatt);
+            style.fontColor = category.color;
+            style.font = Fonts.outline;
+
+            cat.button(example.name(), style, () -> {
+                canvas.add(prov.get());
+                dialog.hide();
+            }).size(CAT_WIDTH, CAT_HEIGHT).self(c -> tooltip(c, "lst." + example.name())).top().left();
+
+            if(cat.getChildren().size % CAT_ROW == 0) cat.row();
+        }
+    }
+
+    private static Table getTable(Table t, LCategory category) {
+        Table cat;
+        t.table(s -> {
+            if(category.icon != null){
+                s.image(category.icon, Pal.darkishGray).left().size(PERIOD).padRight(IMAGE_PAD);
+            }
+            s.add(category.localized()).color(Pal.darkishGray).left().tooltip(category.description());
+            s.image(Tex.whiteui, Pal.darkishGray).left().height(IMAGE_OFFSET).growX().padLeft(IMAGE_PAD);
+        }).growX().pad(IMAGE_OFFSET).padTop(IMAGE_PAD);
+
+        t.row();
+
+        cat = t.table(c -> {
+            c.top().left();
+        }).name(category.name).top().left().growX().fillY().get();
+        t.row();
+        return cat;
+    }
+
+    private void buttonExecute() {
+        BaseDialog dialog = new BaseDialog("@variables");
+        dialog.hidden(() -> {
+            if(!wasPaused && !net.active()){
+                state.set(State.paused);
+            }
+        });
+
+        dialog.shown(() -> {
+            if(!wasPaused && !net.active()){
+                state.set(State.playing);
+            }
+        });
+
+        dialog.cont.pane(p -> {
+            p.margin(PAD_MARGIN).marginRight(PAD_RIGHT);
+            p.table(Tex.button, t -> {
+                t.defaults().fillX().height(TABLE_HEIGHT);
+                executorTable(t);
             });
+        });
 
-            dialog.shown(() -> {
-                if(!wasPaused && !net.active()){
-                    state.set(State.playing);
-                }
-            });
+        dialog.addCloseButton();
+        dialog.show();
+    }
 
-            dialog.cont.pane(p -> {
-                p.margin(10f).marginRight(16f);
-                p.table(Tex.button, t -> {
-                    t.defaults().fillX().height(45f);
-                    for(var s : executor.vars){
-                        if(s.constant) continue;
+    private void executorTable(Table t) {
+        for(var s : executor.vars){
+            if(s.constant) continue;
 
-                        Color varColor = Pal.gray;
-                        float stub = 8f, mul = 0.5f, pad = 4;
+            Color varColor = Pal.gray;
+            float stub = STUB, mul = MUL, pad = PAD_LEFT;
 
-                        t.add(new Image(Tex.whiteui, varColor.cpy().mul(mul))).width(stub);
-                        t.stack(new Image(Tex.whiteui, varColor), new Label(" " + s.name + " ", Styles.outlineLabel){{
-                            setColor(Pal.accent);
-                        }}).padRight(pad);
+            t.add(new Image(Tex.whiteui, varColor.cpy().mul(mul))).width(stub);
+            t.stack(new Image(Tex.whiteui, varColor), new Label(" " + s.name + " ", Styles.outlineLabel){{
+                setColor(Pal.accent);
+            }}).padRight(pad);
 
-                        t.add(new Image(Tex.whiteui, Pal.gray.cpy().mul(mul))).width(stub);
-                        t.table(Tex.pane, out -> {
-                            float period = 15f;
-                            float[] counter = {-1f};
-                            Label label = out.add("").style(Styles.outlineLabel).padLeft(4).padRight(4).width(140f).wrap().get();
-                            label.update(() -> {
-                                if(counter[0] < 0 || (counter[0] += Time.delta) >= period){
-                                    String text = s.isobj ? PrintI.toString(s.objval) : Math.abs(s.numval - (long)s.numval) < 0.00001 ? (long)s.numval + "" : s.numval + "";
-                                    if(!label.textEquals(text)){
-                                        label.setText(text);
-                                        if(counter[0] >= 0f){
-                                            label.actions(Actions.color(Pal.accent), Actions.color(Color.white, 0.2f));
-                                        }
-                                    }
-                                    counter[0] = 0f;
-                                }
-                            });
-                            label.act(1f);
-                        }).padRight(pad);
+            t.add(new Image(Tex.whiteui, Pal.gray.cpy().mul(mul))).width(stub);
+            t.table(Tex.pane, out -> tableOut(s, out)).padRight(pad);
 
-                        t.add(new Image(Tex.whiteui, typeColor(s, new Color()).mul(mul))).update(i -> i.setColor(typeColor(s, i.color).mul(mul))).width(stub);
+            Cons<Image> imageCons = i -> i.setColor(typeColor(s, i.color).mul(mul));
+            Image element = new Image(Tex.whiteui, typeColor(s, new Color()).mul(mul));
+            t.add(element).update(imageCons).width(stub);
 
-                        t.stack(new Image(Tex.whiteui, typeColor(s, new Color())){{
-                            update(() -> setColor(typeColor(s, color)));
-                        }}, new Label(() -> " " + typeName(s) + " "){{
-                            setStyle(Styles.outlineLabel);
-                        }});
+            t.stack(new Image(Tex.whiteui, typeColor(s, new Color())){{
+                update(() -> setColor(typeColor(s, color)));
+            }}, new Label(() -> " " + typeName(s) + " "){{
+                setStyle(Styles.outlineLabel);
+            }});
 
-                        t.row();
+            t.row();
 
-                        t.add().growX().colspan(6).height(4).row();
+            t.add().growX().colspan(COLSPAN).height(HEIGHT).row();
+        }
+    }
+
+    private static void tableOut(Var s, Table out) {
+        float[] counter = {-1f};
+        Label label = out.add("").style(Styles.outlineLabel).padLeft(PAD_LEFT).padRight(PAD_LEFT).width(WIDTH).wrap().get();
+        label.update(() -> {
+            if(counter[0] < 0 || (counter[0] += Time.delta) >= PERIOD){
+                double a = s.numval - (long) s.numval;
+                String s1 = Math.abs(a) < DOUBLE_MIN ? (long) s.numval + "" : s.numval + "";
+                String text = s.isobj ? PrintI.toString(s.objval) : s1;
+                if(!label.textEquals(text)){
+                    label.setText(text);
+                    if(counter[0] >= 0f){
+                        label.actions(Actions.color(Pal.accent), Actions.color(Color.white, DURATION));
                     }
-                });
+                }
+                counter[0] = 0f;
+            }
+        });
+        label.act(1f);
+    }
+
+    private void buttonEdit() {
+        BaseDialog dialog = new BaseDialog("@editor.export");
+        dialog.cont.pane(p -> {
+            p.margin(PAD_MARGIN);
+            p.table(Tex.button, t -> {
+                dialogTable(dialog, t);
             });
+        });
 
-            dialog.addCloseButton();
-            dialog.show();
-        }).name("variables").disabled(b -> executor == null || executor.vars.length == 0);
+        dialog.addCloseButton();
+        dialog.show();
+    }
 
-        buttons.button("@add", Icon.add, () -> {
-            BaseDialog dialog = new BaseDialog("@add");
-            dialog.cont.table(table -> {
-                table.background(Tex.button);
-                table.pane(t -> {
-                    for(Prov<LStatement> prov : LogicIO.allStatements){
-                        LStatement example = prov.get();
-                        if(example instanceof InvalidStatement || example.hidden() || (example.privileged() && !privileged) || (example.nonPrivileged() && privileged)) continue;
+    private void dialogTable(BaseDialog dialog, Table t) {
+        TextButtonStyle style = Styles.flatt;
+        t.defaults().size(DEFAULT_SIZE_WIDTH, DEFAULT_SIZE_HEIGHT).left();
 
-                        LCategory category = example.category();
-                        Table cat = t.find(category.name);
-                        if(cat == null){
-                            t.table(s -> {
-                                if(category.icon != null){
-                                    s.image(category.icon, Pal.darkishGray).left().size(15f).padRight(10f);
-                                }
-                                s.add(category.localized()).color(Pal.darkishGray).left().tooltip(category.description());
-                                s.image(Tex.whiteui, Pal.darkishGray).left().height(5f).growX().padLeft(10f);
-                            }).growX().pad(5f).padTop(10f);
-
-                            t.row();
-
-                            cat = t.table(c -> {
-                                c.top().left();
-                            }).name(category.name).top().left().growX().fillY().get();
-                            t.row();
-                        }
-
-                        TextButtonStyle style = new TextButtonStyle(Styles.flatt);
-                        style.fontColor = category.color;
-                        style.font = Fonts.outline;
-
-                        cat.button(example.name(), style, () -> {
-                            canvas.add(prov.get());
-                            dialog.hide();
-                        }).size(130f, 50f).self(c -> tooltip(c, "lst." + example.name())).top().left();
-
-                        if(cat.getChildren().size % 3 == 0) cat.row();
-                    }
-                }).grow();
-            }).fill().maxHeight(Core.graphics.getHeight() * 0.8f);
-            dialog.addCloseButton();
-            dialog.show();
-        }).disabled(t -> canvas.statements.getChildren().size >= LExecutor.maxInstructions);
+        t.button("@schematic.copy", Icon.copy, style, () -> {
+            dialog.hide();
+            Core.app.setClipboardText(canvas.save());
+        }).marginLeft(MARGIN_LEFT);
+        t.row();
+        t.button("@schematic.copy.import", Icon.download, style, () -> {
+            dialog.hide();
+            try{
+                canvas.load(Core.app.getClipboardText().replace("\r\n", "\n"));
+            }catch(Throwable e){
+                ui.showException(e);
+            }
+        }).marginLeft(MARGIN_LEFT).disabled(b -> Core.app.getClipboardText() == null);
     }
 
     public void show(String code, LExecutor executor, boolean privileged, Cons<String> modified){
