@@ -26,10 +26,14 @@ public class Placement{
     private static final IntSet closed = new IntSet();
 
     /** Normalize a diagonal line into points. */
-    public static Seq<Point2> pathfindLine(boolean conveyors, int startX, int startY, int endX, int endY){
+    public static Seq<Point2> pathfindLine(PathLine pathLine){
         Pools.freeAll(points);
         points.clear();
-        if(conveyors && Core.settings.getBool("conveyorpathfinding")){
+        int startX = pathLine.startX();
+        int startY = pathLine.startY();
+        int endX = pathLine.endX();
+        int endY = pathLine.endY();
+        if(pathLine.conveyors() && Core.settings.getBool("conveyorpathfinding")){
             if(astar(startX, startY, endX, endY)){
                 return points;
             }else{
@@ -65,7 +69,7 @@ public class Placement{
         var build = world.build(startX, startY);
         points.add(Pools.obtain(Point2.class, Point2::new).set(startX, startY));
         while(build instanceof ChainedBuilding chain && (build.tile.x != endX || build.tile.y != endY) && closed.add(build.id)){
-            if(chain.next() == null) return pathfindLine(true, startX, startY, endX, endY);
+            if(chain.next() == null) return pathfindLine(new PathLine(true, startX, startY, endX, endY));
             build = chain.next();
             points.add(Pools.obtain(Point2.class, Point2::new).set(build.tile.x, build.tile.y));
         }

@@ -1784,7 +1784,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
                     && block.canReplace(end.block) && block.canReplace(start.block)){
                 points = Placement.upgradeLine(startX, startY, endX, endY);
             }else{
-                points = Placement.pathfindLine(block != null && block.conveyorPlacement, startX, startY, endX, endY);
+                points = Placement.pathfindLine(new PathLine(block != null && block.conveyorPlacement, startX, startY, endX, endY));
             }
         }else{
             points = Placement.normalizeLine(startX, startY, endX, endY);
